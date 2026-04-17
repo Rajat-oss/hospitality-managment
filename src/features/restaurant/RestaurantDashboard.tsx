@@ -6,26 +6,7 @@ import { UtensilsCrossed, Table2, ShoppingBag, DollarSign, ArrowUpRight, Clock }
 import { format } from 'date-fns'
 import styles from './Restaurant.module.css'
 
-const HOURLY = [
-  { hour: '8am', orders: 5, revenue: 1200 },
-  { hour: '10am', orders: 12, revenue: 2800 },
-  { hour: '12pm', orders: 38, revenue: 9400 },
-  { hour: '2pm', orders: 22, revenue: 5200 },
-  { hour: '4pm', orders: 8, revenue: 1800 },
-  { hour: '6pm', orders: 25, revenue: 6100 },
-  { hour: '8pm', orders: 42, revenue: 10800 },
-  { hour: '10pm', orders: 18, revenue: 4200 },
-]
 
-const TOP_ITEMS = [
-  { name: 'Chicken Biryani', count: 42, revenue: 15960 },
-  { name: 'Paneer Tikka', count: 38, revenue: 10640 },
-  { name: 'Dal Makhani', count: 31, revenue: 6820 },
-  { name: 'Fish Curry', count: 24, revenue: 10080 },
-  { name: 'Gulab Jamun', count: 29, revenue: 3480 },
-]
-
-const PIE_COLORS = ['#5A9690', '#2F5755', '#4caf82', '#d4a017', '#a06060']
 
 export default function RestaurantDashboard() {
   const { profile } = useAuth()
@@ -34,14 +15,40 @@ export default function RestaurantDashboard() {
   const availTables = tables.filter(t => t.status === 'available').length
   const occupiedTables = tables.filter(t => t.status === 'occupied').length
   const activeOrders = orders.filter(o => o.status !== 'billed').length
-  const todayRevenue = orders.reduce((s, o) => s + o.total_amount, 0)
+  
+  const todayStr = format(new Date(), 'yyyy-MM-dd')
+  const todayOrders = orders.filter(o => o.created_at.startsWith(todayStr))
+  const todayRevenue = todayOrders.reduce((s, o) => s + o.total_amount, 0)
   const pendingOrders = orders.filter(o => o.status === 'pending' || o.status === 'preparing').length
 
+  const PIE_COLORS = ['#5A9690', '#2F5755', '#4caf82', '#d4a017', '#a06060']
+
+  // Dynamic Chart Generation
+  const HOURLY = [{ hour: format(new Date(), 'ha'), orders: todayOrders.length, revenue: todayRevenue }]
+  
+  // Aggregate Top Items from today's orders
+  const itemMap: Record<string, { count: number, revenue: number }> = {}
+  todayOrders.forEach(o => {
+    o.items?.forEach(i => {
+      const name = i.menu_item?.name || 'Unknown Item'
+      if (!itemMap[name]) itemMap[name] = { count: 0, revenue: 0 }
+      itemMap[name].count += i.quantity
+      itemMap[name].revenue += (i.price * i.quantity)
+    })
+  })
+  
+  const TOP_ITEMS = Object.entries(itemMap)
+    .map(([name, data]) => ({ name, ...data }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5)
+
+  const occupancyRate = tables.length > 0 ? Math.round((occupiedTables / tables.length) * 100) : 0
+
   const STATS = [
-    { label: 'Table Occupancy', value: `${Math.round((occupiedTables / tables.length) * 100)}%`, sub: `${occupiedTables}/${tables.length} occupied`, icon: Table2, color: 'var(--color-teal-light)', trend: '+8%' },
-    { label: "Today's Revenue", value: `₹${todayRevenue.toLocaleString()}`, sub: 'From all tables', icon: DollarSign, color: '#4caf82', trend: '+15%' },
+    { label: 'Table Occupancy', value: `${occupancyRate}%`, sub: `${occupiedTables}/${tables.length} occupied`, icon: Table2, color: 'var(--color-teal-light)', trend: 'Live' },
+    { label: "Today's Revenue", value: `₹${todayRevenue.toLocaleString()}`, sub: 'From all tables', icon: DollarSign, color: '#4caf82', trend: todayRevenue > 0 ? 'Active' : 'Awaiting' },
     { label: 'Active Orders', value: String(activeOrders), sub: `${pendingOrders} pending kitchen`, icon: ShoppingBag, color: 'var(--color-cream)', trend: `${orders.length} total` },
-    { label: 'Avg Order Value', value: `₹${Math.round(todayRevenue / Math.max(orders.length, 1)).toLocaleString()}`, sub: 'Per table', icon: UtensilsCrossed, color: '#d4a017', trend: '↑ from yesterday' },
+    { label: 'Avg Order Value', value: `₹${Math.round(todayRevenue / Math.max(todayOrders.length, 1)).toLocaleString()}`, sub: 'Per table', icon: UtensilsCrossed, color: '#d4a017', trend: 'Live stats' },
   ]
 
   return (
@@ -76,7 +83,7 @@ export default function RestaurantDashboard() {
           <div style={{ marginBottom: '24px' }}>
             <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>Peak Hours Today</div>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <Clock size={12} /> Highest traffic at 8 PM
+              <Clock size={12} /> Today's flow
             </div>
           </div>
           <ResponsiveContainer width="100%" height={200}>
@@ -94,18 +101,22 @@ export default function RestaurantDashboard() {
         <div className="card" style={{ flex: 1 }}>
           <div style={{ marginBottom: '20px', fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>Top Menu Items</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {TOP_ITEMS.map((item, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: PIE_COLORS[i], opacity: 0.8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '11px', color: 'white' }}>{i + 1}</div>
-                  <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{item.name}</span>
+            {TOP_ITEMS.length === 0 ? (
+              <div style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '20px 0' }}>No orders yet today.</div>
+            ) : (
+              TOP_ITEMS.map((item, i) => (
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '24px', height: '24px', borderRadius: '6px', background: PIE_COLORS[i] || '#5A9690', opacity: 0.8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '11px', color: 'white' }}>{i + 1}</div>
+                    <span style={{ fontSize: '13px', color: 'var(--text-primary)' }}>{item.name}</span>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-teal-light)' }}>₹{item.revenue.toLocaleString()}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.count} sold</div>
+                  </div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-teal-light)' }}>₹{item.revenue.toLocaleString()}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{item.count} sold</div>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>

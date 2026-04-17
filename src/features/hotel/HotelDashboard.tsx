@@ -9,25 +9,7 @@ import { BedDouble, TrendingUp, Users, DollarSign, CalendarCheck, AlertCircle, A
 import { format, differenceInDays } from 'date-fns'
 import styles from './Hotel.module.css'
 
-const REVENUE_DATA = [
-  { day: 'Mon', revenue: 42000, bookings: 4 },
-  { day: 'Tue', revenue: 38000, bookings: 3 },
-  { day: 'Wed', revenue: 65000, bookings: 6 },
-  { day: 'Thu', revenue: 55000, bookings: 5 },
-  { day: 'Fri', revenue: 78000, bookings: 7 },
-  { day: 'Sat', revenue: 92000, bookings: 9 },
-  { day: 'Sun', revenue: 84500, bookings: 8 },
-]
 
-const OCCUPANCY_DATA = [
-  { month: 'Oct', rate: 62 },
-  { month: 'Nov', rate: 70 },
-  { month: 'Dec', rate: 88 },
-  { month: 'Jan', rate: 74 },
-  { month: 'Feb', rate: 81 },
-  { month: 'Mar', rate: 79 },
-  { month: 'Apr', rate: 78 },
-]
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -51,20 +33,25 @@ export default function HotelDashboard() {
   const bookedRooms = rooms.filter(r => r.status === 'booked').length
   const availableRooms = rooms.filter(r => r.status === 'available').length
   const maintenanceRooms = rooms.filter(r => r.status === 'maintenance' || r.status === 'cleaning').length
-  const occupancyRate = Math.round((bookedRooms / totalRooms) * 100)
+  const occupancyRate = totalRooms > 0 ? Math.round((bookedRooms / totalRooms) * 100) : 0
 
-  const todayRevenue = transactions.filter(t => t.type === 'income' && t.created_at.startsWith('2026-04-12')).reduce((s, t) => s + t.amount, 0)
+  const todayStr = format(new Date(), 'yyyy-MM-dd')
+  const todayRevenue = transactions.filter(t => t.type === 'income' && t.created_at.startsWith(todayStr)).reduce((s, t) => s + t.amount, 0)
   const totalRevenue = transactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const pendingPayments = bookings.filter(b => b.paid_amount < b.total_amount && b.status !== 'cancelled')
   const pendingAmount = pendingPayments.reduce((s, b) => s + (b.total_amount - b.paid_amount), 0)
 
   const activeBookings = bookings.filter(b => b.status === 'checked-in')
-  const todayCheckouts = bookings.filter(b => b.status === 'checked-in' && b.check_out === '2026-04-12')
+  const todayCheckouts = bookings.filter(b => b.status === 'checked-in' && b.check_out === todayStr)
   const upcomingBookings = bookings.filter(b => b.status === 'confirmed')
 
+  // Dynamic Chart Data mapping (simplified for live view)
+  const REVENUE_DATA = [{ day: 'Today', revenue: todayRevenue }]
+  const OCCUPANCY_DATA = [{ month: format(new Date(), 'MMM'), rate: occupancyRate }]
+
   const STATS = [
-    { label: 'Occupancy Rate', value: `${occupancyRate}%`, sub: `${bookedRooms} of ${totalRooms} rooms`, icon: BedDouble, trend: '+5%', up: true, color: 'var(--color-teal-light)' },
-    { label: "Today's Revenue", value: `₹${(todayRevenue || 84500).toLocaleString()}`, sub: 'Updated just now', icon: DollarSign, trend: '+12%', up: true, color: '#4caf82' },
+    { label: 'Occupancy Rate', value: `${occupancyRate}%`, sub: `${bookedRooms} of ${totalRooms} rooms`, icon: BedDouble, trend: 'Live', up: true, color: 'var(--color-teal-light)' },
+    { label: "Today's Revenue", value: `₹${todayRevenue.toLocaleString()}`, sub: 'Updated just now', icon: DollarSign, trend: todayRevenue > 0 ? 'Active' : 'Awaiting', up: todayRevenue > 0, color: '#4caf82' },
     { label: 'Active Guests', value: String(activeBookings.length), sub: `${todayCheckouts.length} checking out today`, icon: Users, trend: `${upcomingBookings.length} upcoming`, up: true, color: 'var(--color-cream)' },
     { label: 'Pending Payments', value: `₹${pendingAmount.toLocaleString()}`, sub: `${pendingPayments.length} bookings`, icon: AlertCircle, trend: 'Needs attention', up: false, color: '#d4a017' },
   ]
@@ -103,10 +90,10 @@ export default function HotelDashboard() {
         <div className="card" style={{ flex: 2 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
             <div>
-              <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>Revenue This Week</div>
+              <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)' }}>Revenue Overview</div>
               <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>Daily earnings overview</div>
             </div>
-            <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-teal-light)' }}>₹4,54,500</div>
+            <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-teal-light)' }}>₹{totalRevenue.toLocaleString()}</div>
           </div>
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={REVENUE_DATA}>
