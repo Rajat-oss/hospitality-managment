@@ -14,6 +14,8 @@ const schema = z.object({
   email: z.string().email('Enter a valid email'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   role: z.enum(['hotel_admin', 'restaurant_admin', 'hybrid_admin']),
+  businessName: z.string().min(2, 'Company Name must be at least 2 characters'),
+  phone: z.string().min(10, 'Enter a valid phone number'),
 })
 type FormData = z.infer<typeof schema>
 
@@ -36,7 +38,7 @@ export default function SignupPage() {
 
   async function onSubmit(data: FormData) {
     setLoading(true)
-    const { error, session } = await signUp(data.email, data.password, data.name, data.role)
+    const { error, session } = await signUp(data.email, data.password, data.name, data.role, data.businessName, data.phone)
     setLoading(false)
 
     if (error) {
@@ -120,6 +122,28 @@ export default function SignupPage() {
               placeholder="you@example.com"
             />
             {errors.email && <p className="form-error">{errors.email.message}</p>}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Company Name</label>
+            <input
+              {...register('businessName')}
+              type="text"
+              className={`form-input ${errors.businessName ? 'error' : ''}`}
+              placeholder="Your Company Name"
+            />
+            {errors.businessName && <p className="form-error">{errors.businessName.message}</p>}
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Phone Number</label>
+            <input
+              {...register('phone')}
+              type="tel"
+              className={`form-input ${errors.phone ? 'error' : ''}`}
+              placeholder="+91 9876543210"
+            />
+            {errors.phone && <p className="form-error">{errors.phone.message}</p>}
           </div>
 
           <div className="form-group" style={{ gridColumn: '1 / -1' }}>

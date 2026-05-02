@@ -8,6 +8,7 @@ import { useAuth } from '../features/auth/AuthContext'
 const LandingPage = lazy(() => import('../pages/Landing'))
 const LoginPage = lazy(() => import('../pages/Auth/Login'))
 const SignupPage = lazy(() => import('../pages/Auth/Signup'))
+const BusinessDirectory = lazy(() => import('../pages/BusinessDirectory'))
 
 // Hotel
 const HotelDashboard = lazy(() => import('../features/hotel/HotelDashboard'))
@@ -57,6 +58,7 @@ export function AppRouter() {
         {/* Public */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/businesses" element={<BusinessDirectory />} />
 
         {/* Auth */}
         <Route path="/login" element={<GuestGuard><LoginPage /></GuestGuard>} />

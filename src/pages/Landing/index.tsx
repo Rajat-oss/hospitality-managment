@@ -50,6 +50,7 @@ export default function Landing() {
           <span className={s.logoName}>HospitalityHub</span>
         </Link>
         <div className={s.navCta}>
+          <Link to="/businesses" className={s.navLink}>Our Partners</Link>
           <Link to="/login" className={s.navLink}>Member Portal</Link>
           <Link to="/signup" className={s.btnGold}>Inquire Now</Link>
         </div>

@@ -14,7 +14,7 @@ interface AuthState {
 
 interface AuthActions {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>
-  signUp: (email: string, password: string, name: string, role: UserRole) => Promise<{ error: string | null, session: Session | null }>
+  signUp: (email: string, password: string, name: string, role: UserRole, businessName?: string, phone?: string) => Promise<{ error: string | null, session: Session | null }>
   signOut: () => Promise<void>
   updateProfile: (updates: Partial<UserProfile>) => Promise<void>
   createBusiness: (name: string, type: BusinessType) => Promise<{ error: string | null }>
@@ -130,12 +130,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!data || error?.status === 406 || error?.status === 401) {
         setAttemptedCreation(authUser.id)
         
+        let businessId = null
+
+        // If the user provided a business name during signup, create the business first
+        if (authUser.user_metadata?.business_name) {
+          const bizType = authUser.user_metadata?.role === 'restaurant_admin' ? 'restaurant' : 
+                          authUser.user_metadata?.role === 'hybrid_admin' ? 'both' : 'hotel'
+
+          const { data: bizData, error: bizErr } = await supabase
+            .from('businesses')
+            .insert({
+              name: authUser.user_metadata.business_name,
+              phone: authUser.user_metadata.phone,
+              type: bizType,
+              owner_id: authUser.id
+            })
+            .select()
+            .maybeSingle()
+            
+          if (!bizErr && bizData) {
+            businessId = bizData.id
+          }
+        }
+
         const newProfile = {
           id: authUser.id,
           email: authUser.email,
           name: authUser.user_metadata?.name || 'New User',
           role: authUser.user_metadata?.role || 'hotel_admin',
           plan: 'free',
+          business_id: businessId,
           created_at: new Date().toISOString(),
         }
 
@@ -182,7 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   // ── Sign Up ──────────────────────────────────────────────
-  async function signUp(email: string, password: string, name: string, role: UserRole) {
+  async function signUp(email: string, password: string, name: string, role: UserRole, businessName?: string, phone?: string) {
     if (isDemoMode) {
       return { error: 'Sign up is disabled in demo mode. Use the demo accounts.', session: null }
     }
@@ -194,6 +218,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         data: {
           name,
           role,
+          business_name: businessName,
+          phone,
         }
       }
     })
